@@ -1,0 +1,32 @@
+Metadata-Version: 2.1
+Name: xiaoai-desktop
+Version: 0.1.0
+Summary: 基于 MQTT 的小爱同学桌面控制中心
+Requires-Python: >=3.8
+Description-Content-Type: text/markdown
+Requires-Dist: PySide6>=6.5
+Requires-Dist: paho-mqtt<2.0,>=1.6
+Provides-Extra: dev
+Requires-Dist: pytest>=7.4; extra == "dev"
+
+# XiaoAi Desktop
+
+基于 MQTT 的 Windows 桌面工具，用于把小爱同学语音指令映射为本机动作。
+
+## 功能
+
+- 本地桌面 GUI 管理 MQTT 连接、动作和日志
+- 系统托盘常驻监听
+- 白名单动作执行
+- 支持打开软件、运行脚本、切换显示器、组合动作
+- 支持开机自启
+
+## 开发
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -e ".[dev]"
+pytest
+python3 -m xiaoai_desktop
+```
