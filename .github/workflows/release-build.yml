@@ -1,0 +1,50 @@
+name: Release Build
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: write
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 安装 Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: 安装依赖
+        shell: cmd
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev,build]"
+
+      - name: 运行测试
+        shell: cmd
+        run: |
+          pytest -q
+
+      - name: 执行 Windows 打包
+        shell: cmd
+        run: |
+          scripts\build_windows.bat
+
+      - name: 生成 zip 包
+        shell: pwsh
+        run: |
+          $tag = "${{ github.event.release.tag_name }}"
+          $zipName = "XiaoAiDesktop-windows-$tag.zip"
+          Compress-Archive -Path "dist/XiaoAiDesktop/*" -DestinationPath $zipName -Force
+          "ASSET_PATH=$zipName" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+      - name: 上传 Release 资产
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ env.ASSET_PATH }}

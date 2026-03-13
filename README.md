@@ -50,3 +50,16 @@ py -3 -m venv .venv
 .venv\Scripts\python.exe -m pip install -e ".[dev,build]"
 .venv\Scripts\pyinstaller.exe packaging\xiaoai_desktop.spec --noconfirm --clean
 ```
+
+## GitHub Release 自动打包
+
+- 已提供 GitHub Actions 工作流：[release-build.yml](/Users/zhuwei/code/zhuwei/temp/.github/workflows/release-build.yml)
+- 触发条件：在 GitHub 上发布 Release
+- 执行流程：
+  - Windows runner 安装依赖
+  - 运行 `pytest -q`
+  - 调用 `scripts\build_windows.bat`
+  - 将 `dist/XiaoAiDesktop` 压缩为 `XiaoAiDesktop-windows-<tag>.zip`
+  - 自动上传到当前 Release 页面
+
+如果测试失败，工作流会直接失败，不会上传任何打包产物。
