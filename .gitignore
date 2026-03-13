@@ -2,3 +2,18 @@
 /(14 封私信 _ 3 条消息) 小爱音箱控制电脑执行任意指令(无需任何额外设备) - 知乎.html
 /.idea/
 /.venv/
+
+# Python 缓存
+__pycache__/
+*.py[cod]
+
+# 测试缓存
+.pytest_cache/
+
+# 构建产物
+/build/
+/dist/
+*.egg-info/
+
+# macOS 临时文件
+.DS_Store
