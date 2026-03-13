@@ -72,6 +72,21 @@ GUI 的 MQTT 页中：
     - 消息：`收到 MQTT 消息`
 - 若未匹配到动作，GUI 日志会记录 `WARNING`。
 
+## 当前图标资源
+
+当前项目已接入自定义图标：
+
+- GUI 窗口 / 托盘图标：
+  - [裁剪的圆形图片.png](/Users/zhuwei/code/zhuwei/temp/裁剪的圆形图片.png)
+- Windows 打包图标：
+  - [favicon.ico](/Users/zhuwei/code/zhuwei/temp/favicon.ico)
+
+实现方式：
+
+- 运行时优先加载 PNG
+- 若资源缺失则回退到 Qt 标准图标
+- Windows `PyInstaller` 打包时使用 ICO
+
 ## 配置文件位置
 
 macOS 默认配置文件：

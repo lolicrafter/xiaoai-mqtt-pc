@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import sys
+from pathlib import Path
 from typing import List
 
 from PySide6.QtCore import Qt
@@ -63,6 +65,23 @@ class MainWindow(QMainWindow):
     def _set_wide_controls(self, *widgets: QWidget) -> None:
         for widget in widgets:
             widget.setMinimumWidth(320)
+
+    def _load_app_icon(self) -> QIcon:
+        icon_candidates = [
+            self._resource_root() / "裁剪的圆形图片.png",
+            self._resource_root() / "favicon.ico",
+        ]
+        for icon_path in icon_candidates:
+            if icon_path.exists():
+                icon = QIcon(str(icon_path))
+                if not icon.isNull():
+                    return icon
+        return self.style().standardIcon(QStyle.SP_ComputerIcon)
+
+    def _resource_root(self) -> Path:
+        if getattr(sys, "frozen", False):
+            return Path(getattr(sys, "_MEIPASS", Path(sys.executable).resolve().parent))
+        return Path(__file__).resolve().parents[2]
 
     def _build_ui(self) -> None:
         tabs = QTabWidget()
@@ -292,7 +311,7 @@ class MainWindow(QMainWindow):
 
     def _create_tray(self) -> None:
         self.tray_icon = QSystemTrayIcon(self)
-        tray_icon = self.style().standardIcon(QStyle.SP_ComputerIcon)
+        tray_icon = self._load_app_icon()
         self.setWindowIcon(tray_icon)
         self.tray_icon.setIcon(tray_icon)
         self.tray_icon.setToolTip("小爱桌面控制中心")

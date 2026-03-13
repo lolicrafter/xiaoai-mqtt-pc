@@ -28,6 +28,15 @@ python3 -m xiaoai_desktop
 - 日志：展示时间、级别、主题、载荷、动作与结果
 - 系统：支持最小化到托盘与开机自启
 
+## 图标资源
+
+- 运行时窗口/托盘图标：
+  - [裁剪的圆形图片.png](/Users/zhuwei/code/zhuwei/temp/裁剪的圆形图片.png)
+- Windows 打包图标：
+  - [favicon.ico](/Users/zhuwei/code/zhuwei/temp/favicon.ico)
+
+当前程序会优先加载 PNG 作为 GUI 图标，Windows 打包时使用 ICO 作为 exe 图标。
+
 ## Windows 打包
 
 Windows 下可直接运行：

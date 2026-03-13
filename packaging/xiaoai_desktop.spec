@@ -11,7 +11,10 @@ a = Analysis(
     [str(project_root / "src" / "xiaoai_desktop" / "__main__.py")],
     pathex=[str(project_root / "src")],
     binaries=[],
-    datas=[],
+    datas=[
+        (str(project_root / "裁剪的圆形图片.png"), "."),
+        (str(project_root / "favicon.ico"), "."),
+    ],
     hiddenimports=["PySide6.QtSvg"],
     hookspath=[],
     hooksconfig={},
@@ -35,6 +38,7 @@ exe = EXE(
     upx=True,
     console=False,
     disable_windowed_traceback=False,
+    icon=str(project_root / "favicon.ico"),
 )
 coll = COLLECT(
     exe,
