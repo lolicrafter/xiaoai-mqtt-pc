@@ -8,7 +8,7 @@ project_root = Path.cwd()
 block_cipher = None
 
 a = Analysis(
-    [str(project_root / "src" / "xiaoai_desktop" / "__main__.py")],
+    [str(project_root / "src" / "bootstrap_app.py")],
     pathex=[str(project_root / "src")],
     binaries=[],
     datas=[
