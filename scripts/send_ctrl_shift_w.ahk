@@ -1,0 +1,8 @@
+#Requires AutoHotkey v2.0
+
+; 固定发送 Ctrl+Shift+W
+; 建议通过“小爱桌面控制中心 -> 运行脚本”动作显式调用：
+; AutoHotkeyUX.exe "C:\path\to\send_ctrl_shift_w.ahk"
+
+Sleep 300
+Send "^+w"
