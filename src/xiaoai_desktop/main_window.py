@@ -24,6 +24,8 @@ from PySide6.QtWidgets import (
     QTableWidget,
     QTableWidgetItem,
     QTextEdit,
+    QStyle,
+    QTableWidgetSelectionRange,
     QVBoxLayout,
     QWidget,
 )
@@ -53,17 +55,91 @@ class MainWindow(QMainWindow):
         self.controller.log_service.subscribe(self.append_log)
         self._build_ui()
         self._create_tray()
+        self.refresh_curtain_mapping()
         self.refresh_actions()
         self.refresh_mqtt_fields()
         self.refresh_logs()
 
+    def _set_wide_controls(self, *widgets: QWidget) -> None:
+        for widget in widgets:
+            widget.setMinimumWidth(320)
+
     def _build_ui(self) -> None:
         tabs = QTabWidget()
-        tabs.addTab(self._build_actions_tab(), "动作")
+        tabs.addTab(self._build_curtain_tab(), "窗帘映射")
+        tabs.addTab(self._build_actions_tab(), "动作库")
         tabs.addTab(self._build_mqtt_tab(), "MQTT")
         tabs.addTab(self._build_system_tab(), "系统")
         tabs.addTab(self._build_logs_tab(), "日志")
         self.setCentralWidget(tabs)
+
+    def _build_curtain_tab(self) -> QWidget:
+        page = QWidget()
+        layout = QVBoxLayout(page)
+
+        info = QLabel("固定监听巴法云窗帘设备 A009。请把“开 / 关 / 打开到某百分比”分别绑定到一个已有动作。")
+        info.setWordWrap(True)
+        layout.addWidget(info)
+
+        form = QFormLayout()
+        self.curtain_topic_label = QLabel("A009")
+        self.on_action_combo = QComboBox()
+        self.off_action_combo = QComboBox()
+        self._set_wide_controls(self.on_action_combo, self.off_action_combo)
+        form.addRow("设备 ID", self.curtain_topic_label)
+        form.addRow("开（on）", self.on_action_combo)
+        form.addRow("关（off）", self.off_action_combo)
+        layout.addLayout(form)
+
+        percent_box = QGroupBox("打开幅度映射")
+        percent_layout = QVBoxLayout(percent_box)
+        add_row = QHBoxLayout()
+        self.percent_spin = QSpinBox()
+        self.percent_spin.setRange(0, 100)
+        self.percent_action_combo = QComboBox()
+        self._set_wide_controls(self.percent_action_combo)
+        add_percent_button = QPushButton("添加/更新")
+        add_percent_button.clicked.connect(self._save_percent_mapping)
+        add_row.addWidget(QLabel("百分比"))
+        add_row.addWidget(self.percent_spin)
+        add_row.addWidget(self.percent_action_combo)
+        add_row.addWidget(add_percent_button)
+        percent_layout.addLayout(add_row)
+
+        self.percent_table = QTableWidget(0, 2)
+        self.percent_table.setHorizontalHeaderLabels(["百分比", "绑定动作"])
+        self.percent_table.horizontalHeader().setStretchLastSection(True)
+        self.percent_table.itemSelectionChanged.connect(self._on_percent_row_selected)
+        percent_layout.addWidget(self.percent_table)
+
+        percent_button_row = QHBoxLayout()
+        remove_percent_button = QPushButton("删除选中映射")
+        remove_percent_button.clicked.connect(self._remove_percent_mapping)
+        percent_button_row.addWidget(remove_percent_button)
+        percent_layout.addLayout(percent_button_row)
+        layout.addWidget(percent_box)
+
+        test_box = QGroupBox("测试触发")
+        test_layout = QHBoxLayout(test_box)
+        test_on_button = QPushButton("测试 on")
+        test_on_button.clicked.connect(lambda: self._test_curtain_payload("on"))
+        test_off_button = QPushButton("测试 off")
+        test_off_button.clicked.connect(lambda: self._test_curtain_payload("off"))
+        self.test_percent_spin = QSpinBox()
+        self.test_percent_spin.setRange(0, 100)
+        test_percent_button = QPushButton("测试 on#百分比")
+        test_percent_button.clicked.connect(self._test_percent_payload)
+        test_layout.addWidget(test_on_button)
+        test_layout.addWidget(test_off_button)
+        test_layout.addWidget(self.test_percent_spin)
+        test_layout.addWidget(test_percent_button)
+        layout.addWidget(test_box)
+
+        save_button = QPushButton("保存窗帘映射")
+        save_button.clicked.connect(self._save_curtain_mapping)
+        layout.addWidget(save_button)
+        layout.addStretch(1)
+        return page
 
     def _build_actions_tab(self) -> QWidget:
         page = QWidget()
@@ -96,8 +172,6 @@ class MainWindow(QMainWindow):
         right_panel = QWidget()
         form = QFormLayout(right_panel)
         self.name_edit = QLineEdit()
-        self.topic_edit = QLineEdit()
-        self.aliases_edit = QTextEdit()
         self.enabled_checkbox = QCheckBox("启用此动作")
         self.enabled_checkbox.setChecked(True)
         self.primary_path_edit = QLineEdit()
@@ -107,10 +181,16 @@ class MainWindow(QMainWindow):
         self.step_action_combo = QComboBox()
         self.steps_list = QListWidget()
         steps_box = self._build_steps_box()
+        self._set_wide_controls(
+            self.name_edit,
+            self.primary_path_edit,
+            self.args_edit,
+            self.working_dir_edit,
+            self.profile_path_edit,
+            self.step_action_combo,
+        )
 
         form.addRow("动作名称", self.name_edit)
-        form.addRow("MQTT 主题", self.topic_edit)
-        form.addRow("口令别名（每行一个）", self.aliases_edit)
         form.addRow("", self.enabled_checkbox)
         form.addRow("主路径", self.primary_path_edit)
         form.addRow("参数（空格分隔）", self.args_edit)
@@ -163,12 +243,18 @@ class MainWindow(QMainWindow):
         self.username_edit = QLineEdit()
         self.password_edit = QLineEdit()
         self.auto_connect_checkbox = QCheckBox("启动后自动连接")
+        self._set_wide_controls(
+            self.host_edit,
+            self.client_id_edit,
+            self.username_edit,
+            self.password_edit,
+        )
         connect_button = QPushButton("保存并重连")
         connect_button.clicked.connect(self._save_mqtt)
 
         form.addRow("主机", self.host_edit)
         form.addRow("端口", self.port_edit)
-        form.addRow("Client ID", self.client_id_edit)
+        form.addRow("巴法云私钥", self.client_id_edit)
         form.addRow("用户名", self.username_edit)
         form.addRow("密码", self.password_edit)
         form.addRow("", self.auto_connect_checkbox)
@@ -206,7 +292,9 @@ class MainWindow(QMainWindow):
 
     def _create_tray(self) -> None:
         self.tray_icon = QSystemTrayIcon(self)
-        self.tray_icon.setIcon(QIcon())
+        tray_icon = self.style().standardIcon(QStyle.SP_ComputerIcon)
+        self.setWindowIcon(tray_icon)
+        self.tray_icon.setIcon(tray_icon)
         self.tray_icon.setToolTip("小爱桌面控制中心")
         menu = self.tray_icon.contextMenu() or None
         if menu is None:
@@ -295,8 +383,6 @@ class MainWindow(QMainWindow):
             return
         self._refresh_step_action_combo()
         self.name_edit.setText(action.name)
-        self.topic_edit.setText(action.topic)
-        self.aliases_edit.setPlainText("\n".join(action.aliases))
         self.enabled_checkbox.setChecked(action.enabled)
         self.primary_path_edit.clear()
         self.args_edit.clear()
@@ -347,8 +433,6 @@ class MainWindow(QMainWindow):
         if action is None:
             return
         action.name = self.name_edit.text().strip()
-        action.topic = self.topic_edit.text().strip()
-        action.aliases = [line.strip() for line in self.aliases_edit.toPlainText().splitlines() if line.strip()]
         action.enabled = self.enabled_checkbox.isChecked()
         args = [item for item in self.args_edit.text().split(" ") if item]
         if isinstance(action, OpenAppAction):
@@ -369,6 +453,7 @@ class MainWindow(QMainWindow):
         self.controller.stop()
         self.controller.start()
         self.refresh_actions()
+        self.refresh_curtain_mapping()
 
     def _save_mqtt(self) -> None:
         mqtt = self.controller.config.mqtt
@@ -395,7 +480,7 @@ class MainWindow(QMainWindow):
             disable_autostart()
 
     def _on_tray_activated(self, reason: QSystemTrayIcon.ActivationReason) -> None:
-        if reason == QSystemTrayIcon.DoubleClick:
+        if reason in (QSystemTrayIcon.DoubleClick, QSystemTrayIcon.Trigger):
             self.showNormal()
             self.activateWindow()
 
@@ -411,6 +496,86 @@ class MainWindow(QMainWindow):
             if action.id == self.current_action_id:
                 continue
             self.step_action_combo.addItem(f"{action.name} [{action.type.value}] ({action.id})", action.id)
+
+    def refresh_curtain_mapping(self) -> None:
+        curtain = self.controller.config.curtain
+        self.curtain_topic_label.setText(curtain.topic)
+        self._refresh_action_selector(self.on_action_combo, curtain.on_action_id)
+        self._refresh_action_selector(self.off_action_combo, curtain.off_action_id)
+        self._refresh_action_selector(self.percent_action_combo, "")
+        self._refresh_percent_table()
+
+    def _refresh_action_selector(self, combo: QComboBox, selected_action_id: str) -> None:
+        combo.clear()
+        combo.addItem("未绑定", "")
+        for action in self.controller.actions():
+            combo.addItem(f"{action.name} [{action.type.value}]", action.id)
+        index = combo.findData(selected_action_id)
+        combo.setCurrentIndex(index if index >= 0 else 0)
+
+    def _refresh_percent_table(self) -> None:
+        percent_actions = self.controller.config.curtain.percent_actions
+        self.percent_table.setRowCount(0)
+        for percent in sorted(percent_actions.keys(), key=lambda value: int(value)):
+            action_id = percent_actions[percent]
+            action = self.controller.find_action(action_id)
+            action_name = f"{action.name} [{action.type.value}]" if action else f"缺失动作 ({action_id})"
+            row = self.percent_table.rowCount()
+            self.percent_table.insertRow(row)
+            percent_item = QTableWidgetItem(percent)
+            percent_item.setData(Qt.UserRole, percent)
+            self.percent_table.setItem(row, 0, percent_item)
+            self.percent_table.setItem(row, 1, QTableWidgetItem(action_name))
+
+    def _save_curtain_mapping(self) -> None:
+        curtain = self.controller.config.curtain
+        curtain.on_action_id = self.on_action_combo.currentData()
+        curtain.off_action_id = self.off_action_combo.currentData()
+        self.controller.save()
+        self.controller.stop()
+        self.controller.start()
+        QMessageBox.information(self, "保存成功", "窗帘映射已保存。")
+
+    def _save_percent_mapping(self) -> None:
+        action_id = self.percent_action_combo.currentData()
+        if not action_id:
+            QMessageBox.warning(self, "未选择动作", "请先为该百分比选择一个动作。")
+            return
+        percent = str(self.percent_spin.value())
+        self.controller.config.curtain.percent_actions[percent] = action_id
+        self.controller.save()
+        self._refresh_percent_table()
+
+    def _remove_percent_mapping(self) -> None:
+        current_row = self.percent_table.currentRow()
+        if current_row < 0:
+            return
+        percent_item = self.percent_table.item(current_row, 0)
+        if percent_item is None:
+            return
+        percent = percent_item.data(Qt.UserRole)
+        self.controller.config.curtain.percent_actions.pop(str(percent), None)
+        self.controller.save()
+        self._refresh_percent_table()
+
+    def _on_percent_row_selected(self) -> None:
+        current_row = self.percent_table.currentRow()
+        if current_row < 0:
+            return
+        percent_item = self.percent_table.item(current_row, 0)
+        if percent_item is None:
+            return
+        percent = int(percent_item.text())
+        self.percent_spin.setValue(percent)
+        action_id = self.controller.config.curtain.percent_actions.get(str(percent), "")
+        index = self.percent_action_combo.findData(action_id)
+        self.percent_action_combo.setCurrentIndex(index if index >= 0 else 0)
+
+    def _test_curtain_payload(self, payload: str) -> None:
+        self.controller.trigger_curtain_message(payload)
+
+    def _test_percent_payload(self) -> None:
+        self._test_curtain_payload(f"on#{self.test_percent_spin.value()}")
 
     def _populate_steps(self, steps: List[CompositeStep]) -> None:
         self.steps_list.clear()

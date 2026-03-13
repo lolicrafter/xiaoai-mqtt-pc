@@ -26,7 +26,9 @@ def main() -> int:
     controller = AppController(store, log_service)
     window = MainWindow(controller)
     controller.start()
-    if not (args.minimized or controller.config.app.start_minimized):
+    tray_available = window.tray_icon.isSystemTrayAvailable()
+    should_minimize = (args.minimized or controller.config.app.start_minimized) and tray_available
+    if not should_minimize:
         window.show()
     return app.exec()
 

@@ -48,6 +48,7 @@ class MqttService:
     def _handle_message(self, client: mqtt.Client, userdata: object, msg: mqtt.MQTTMessage) -> None:
         topic = str(msg.topic)
         payload = msg.payload.decode("utf-8")
+        print(f"[MQTT] topic={topic} payload={payload}", flush=True)
         self.on_message_callback(topic, payload)
 
     def _handle_disconnect(self, client: mqtt.Client, userdata: object, rc: int) -> None:

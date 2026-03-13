@@ -8,10 +8,13 @@ Requires-Dist: PySide6>=6.5
 Requires-Dist: paho-mqtt<2.0,>=1.6
 Provides-Extra: dev
 Requires-Dist: pytest>=7.4; extra == "dev"
+Provides-Extra: build
+Requires-Dist: pyinstaller>=6.0; extra == "build"
 
 # XiaoAi Desktop
 
-基于 MQTT 的 Windows 桌面工具，用于把小爱同学语音指令映射为本机动作。
+
+[基于 MQTT 的 Windows 桌面工具，用于把小爱同学语音指令映射为本机动作。](https://zhuanlan.zhihu.com/p/707971163)
 
 ## 功能
 
@@ -30,3 +33,46 @@ pip install -e ".[dev]"
 pytest
 python3 -m xiaoai_desktop
 ```
+
+## 当前界面能力
+
+- 动作类型：打开软件、运行脚本、切换显示器、组合动作
+- 组合动作：在 GUI 中从下拉框选择现有动作，按顺序加入步骤，并支持上移、下移、移除
+- 日志：展示时间、级别、主题、载荷、动作与结果
+- 系统：支持最小化到托盘与开机自启
+
+## Windows 打包
+
+Windows 下可直接运行：
+
+```bat
+scripts\build_windows.bat
+```
+
+打包脚本会：
+
+- 创建项目本地 `.venv`
+- 安装开发与打包依赖
+- 调用 `PyInstaller`
+- 输出到 `dist\XiaoAiDesktop`
+
+如果你想手工打包：
+
+```bat
+py -3 -m venv .venv
+.venv\Scripts\python.exe -m pip install -e ".[dev,build]"
+.venv\Scripts\pyinstaller.exe packaging\xiaoai_desktop.spec --noconfirm --clean
+```
+
+## GitHub Release 自动打包
+
+- 已提供 GitHub Actions 工作流：[release-build.yml](/Users/zhuwei/code/zhuwei/temp/.github/workflows/release-build.yml)
+- 触发条件：在 GitHub 上发布 Release
+- 执行流程：
+  - Windows runner 安装依赖
+  - 运行 `pytest -q`
+  - 调用 `scripts\build_windows.bat`
+  - 将 `dist/XiaoAiDesktop` 压缩为 `XiaoAiDesktop-windows-<tag>.zip`
+  - 自动上传到当前 Release 页面
+
+如果测试失败，工作流会直接失败，不会上传任何打包产物。

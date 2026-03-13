@@ -35,6 +35,10 @@ class BaseAction:
     enabled: bool = True
     type: ActionType = ActionType.OPEN_APP
 
+    def __post_init__(self) -> None:
+        if isinstance(self.type, str):
+            self.type = ActionType(self.type)
+
     def to_dict(self) -> Dict[str, Any]:
         payload = asdict(self)
         payload["type"] = self.type.value
@@ -118,19 +122,28 @@ class LogEntry:
 
 @dataclass
 class AppSettings:
-    start_minimized: bool = True
+    start_minimized: bool = False
     enable_autostart: bool = False
     log_limit: int = 200
+
+
+@dataclass
+class CurtainMapping:
+    topic: str = "A009"
+    on_action_id: str = ""
+    off_action_id: str = ""
+    percent_actions: Dict[str, str] = field(default_factory=dict)
 
 
 @dataclass
 class AppConfig:
     mqtt: MqttSettings = field(default_factory=MqttSettings)
     app: AppSettings = field(default_factory=AppSettings)
+    curtain: CurtainMapping = field(default_factory=CurtainMapping)
     actions: List[ActionModel] = field(default_factory=list)
 
     def topics(self) -> List[str]:
-        return sorted({action.topic for action in self.actions if action.enabled and action.topic})
+        return [self.curtain.topic]
 
 
 ACTION_TYPE_MAP = {
@@ -174,6 +187,7 @@ def serialize_config(config: AppConfig) -> Dict[str, Any]:
     return {
         "mqtt": asdict(config.mqtt),
         "app": asdict(config.app),
+        "curtain": asdict(config.curtain),
         "actions": [action.to_dict() for action in config.actions],
     }
 
@@ -181,8 +195,9 @@ def serialize_config(config: AppConfig) -> Dict[str, Any]:
 def deserialize_config(payload: Dict[str, Any]) -> AppConfig:
     mqtt = MqttSettings(**payload.get("mqtt", {}))
     app = AppSettings(**payload.get("app", {}))
+    curtain = CurtainMapping(**payload.get("curtain", {}))
     actions = [action_from_dict(raw) for raw in payload.get("actions", [])]
-    return AppConfig(mqtt=mqtt, app=app, actions=actions)
+    return AppConfig(mqtt=mqtt, app=app, curtain=curtain, actions=actions)
 
 
 def _is_windows() -> bool:

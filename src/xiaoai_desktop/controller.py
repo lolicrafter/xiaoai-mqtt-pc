@@ -52,6 +52,16 @@ class AppController:
         return {action.id: action for action in self.config.actions}
 
     def handle_message(self, topic: str, payload: str) -> None:
+        self.log_service.add(
+            LogEntry.create(
+                level="INFO",
+                topic=topic,
+                payload=payload,
+                action_name="MQTT",
+                success=True,
+                message="收到 MQTT 消息",
+            )
+        )
         action = self.match_action(topic, payload)
         if action is None:
             self.log_service.add(
@@ -68,14 +78,29 @@ class AppController:
         self.executor.execute(action, self.actions_by_id(), topic, payload)
 
     def match_action(self, topic: str, payload: str) -> Optional[ActionModel]:
+        if topic != self.config.curtain.topic:
+            return None
+        action_id = self.resolve_curtain_action_id(payload)
+        if not action_id:
+            return None
+        action = self.find_action(action_id)
+        if action is None or not action.enabled:
+            return None
+        return action
+
+    def resolve_curtain_action_id(self, payload: str) -> str:
         normalized = payload.strip().lower()
-        for action in self.config.actions:
-            if not action.enabled or action.topic != topic:
-                continue
-            aliases = {alias.strip().lower() for alias in action.aliases if alias.strip()}
-            if normalized in aliases:
-                return action
-        return None
+        if normalized == "on":
+            return self.config.curtain.on_action_id
+        if normalized == "off":
+            return self.config.curtain.off_action_id
+        if normalized.startswith("on#"):
+            percent = normalized[3:]
+            return self.config.curtain.percent_actions.get(percent, "")
+        return ""
+
+    def trigger_curtain_message(self, payload: str) -> None:
+        self.handle_message(self.config.curtain.topic, payload)
 
     def _log_status(self, message: str) -> None:
         self.log_service.add(
